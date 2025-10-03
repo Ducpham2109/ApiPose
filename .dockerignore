@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.tmp
+.env
+.vscode
+.idea
+**/.DS_Store
+**/Thumbs.db
+
+# Local data directories you might keep; compose will mount a volume instead
+# data/

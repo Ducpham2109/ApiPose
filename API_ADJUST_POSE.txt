@@ -1,0 +1,90 @@
+RRD Pose Adjust API
+
+Endpoint
+- Method: POST
+- Path  : /api/adjust-pose
+- Mô tả: Áp dụng dịch chuyển XYZ (m) và quay RPY (độ) vào pose world/odom_lidar của file .rrd đầu vào và ghi file kết quả sang thư mục "process" cùng cấp với "origin" trong cùng cấu trúc ngày.
+
+Body (JSON)
+Chọn đúng 1 nguồn input:
+- input_rel_path (string): Đường dẫn tương đối dưới Nginx base. Server tự ghép:
+  NGINX_INPUT_BASE_URL + "/" + input_rel_path
+  Định dạng khuyến nghị: "năm/tháng/ngày/origin/tệp.rrd" (ví dụ: 2025/09/30/origin/tempfile.rrd)
+
+- input_url (string): URL đầy đủ tới file .rrd (được Nginx phục vụ).
+
+- input_path (string): Đường dẫn tuyệt đối trên server tới file .rrd.
+
+Tham số pose (bắt buộc):
+- xyz: [x, y, z] mét (3 số)
+- rpy: [roll, pitch, yaw] độ (3 số)
+
+Ràng buộc
+- Dùng đúng 1 trong 3: input_rel_path | input_url | input_path
+
+Response (JSON)
+- output_path (string): Đường dẫn tuyệt đối file .rrd xuất ra trên server
+- output_url (string, optional): URL public nếu cấu hình PUBLIC_BASE_URL
+
+ENV server (đọc từ .env, có default trong code)
+- STORAGE_ROOT (bắt buộc): Thư mục server để đọc/ghi, Nginx phục vụ từ đây
+- PUBLIC_BASE_URL (optional): Base URL public tương ứng STORAGE_ROOT (trả về output_url)
+- NGINX_INPUT_BASE_URL (optional): Base URL để resolve input_rel_path
+- Default trong code (có thể override bằng .env):
+  - DEFAULT_NGINX_INPUT_BASE_URL = http://localhost:8083
+  - DEFAULT_PUBLIC_BASE_URL      = http://localhost:8082
+
+Hành vi
+- input_rel_path → server ghép URL đầy đủ rồi tải tệp vào thư mục làm việc tạm dưới STORAGE_ROOT
+- Áp pose cho world/odom_lidar
+- Vị trí lưu output: cùng cấu trúc ngày của input, nhưng thư mục "process" thay cho "origin"
+  Ví dụ: 2025/09/30/origin/tempfile.rrd → 2025/09/30/process/tempfile.rrd
+- Nếu tệp đích đã tồn tại trong "process" → ghi đè
+- Nếu có PUBLIC_BASE_URL → trả thêm output_url (map theo STORAGE_ROOT)
+
+Ví dụ gọi API
+
+1) Dùng relative path (khuyến nghị cho web):
+curl -X POST http://localhost:8000/api/adjust-pose \
+  -H "Content-Type: application/json" \
+  -d '{
+      "input_rel_path": "2025/09/30/origin/tempfile.rrd",
+    "xyz": [0, 0, -0.1],
+    "rpy": [0, 0, 0]
+  }'
+
+2) Dùng full URL:
+curl -X POST http://localhost:8000/api/adjust-pose \
+  -H "Content-Type: application/json" \
+  -d '{
+      "input_url": "http://localhost:8083/2025/09/30/origin/tempfile.rrd",
+    "xyz": [0, 0, -0.1],
+    "rpy": [0, 0, 0]
+  }'
+
+3) Dùng đường dẫn local trên server:
+curl -X POST http://localhost:8000/api/adjust-pose \
+  -H "Content-Type: application/json" \
+  -d '{
+      "input_path": "E:\\nginx\\html\\rrd-data\\2025\\09\\30\\origin\\tempfile.rrd",
+    "xyz": [0, 0, -0.1],
+    "rpy": [0, 0, 0]
+  }'
+
+Cách chạy server
+
+1) Python env + cài dependency:
+python -m venv .venv
+.\.venv\Scripts\pip install -r requirements.txt
+
+2) Tạo .env (cùng thư mục với api_server.py), hoặc dùng default trong code:
+STORAGE_ROOT=E:\nginx\html\rrd-data
+PUBLIC_BASE_URL=http://localhost:8082
+NGINX_INPUT_BASE_URL=http://localhost:8083
+
+3) Chạy server:
+.\.venv\Scripts\uvicorn api_server:create_app --host 0.0.0.0 --port 8000
+
+Ghi chú
+- Trên web (Next.js), bạn chỉ gửi tail path: input_rel_path (Nginx base để trong server)
+- xyz/rpy phải đúng 3 số; lỗi validate trả 400, lỗi xử lý trả 500

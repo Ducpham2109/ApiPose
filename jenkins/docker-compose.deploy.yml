@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ${DATA_DIR:-/opt/rerun/public/uploads}:/data/rrd
+      - ${DATA_DIR:-./data}:/data/rrd
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
       interval: 30s
@@ -28,6 +28,7 @@ services:
     ports:
       - "${NGINX_PORT:-8083}:80"
     volumes:
-      - ${DATA_DIR:-/opt/rerun/public/uploads}:/opt/rerun/public/uploads:ro
-      - ./nginx/api-adjust.conf:/etc/nginx/conf.d/api-adjust.conf:ro
+          - ./public/uploads:/var/www/uploads
+      # Mount nginx config
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
 

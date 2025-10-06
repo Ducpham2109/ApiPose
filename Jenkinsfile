@@ -69,8 +69,9 @@ pipeline {
           export DATA_DIR=${DATA_DIR}
           export STORAGE_ROOT=${STORAGE_ROOT}
           export NGINX_PORT=${NGINX_PORT}
-          sudo mkdir -p ${DATA_DIR}
-          sudo chown jenkins:jenkins ${DATA_DIR}
+          
+          # Create directory in workspace instead of system directory
+          mkdir -p ${DATA_DIR}
           
           # Copy .env file to jenkins directory
           mkdir -p jenkins

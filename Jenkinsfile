@@ -74,9 +74,9 @@ pipeline {
           mkdir -p ${DATA_DIR}/origin
           mkdir -p ${DATA_DIR}/process
           
-          # Copy .env file to jenkins directory
+          # Create jenkins directory (no need to copy .env)
           mkdir -p jenkins
-          cp .env jenkins/.env
+          chmod 755 jenkins
           
           docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} up -d --remove-orphans --force-recreate
         '''

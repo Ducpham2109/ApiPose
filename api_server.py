@@ -34,6 +34,9 @@ class AdjustPoseResponse(BaseModel):
 
 app = FastAPI(title="RRD Pose Adjust API")
 
+@app.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}
 
 def _resolve_storage_root() -> Path:
     root = os.getenv("STORAGE_ROOT", "")

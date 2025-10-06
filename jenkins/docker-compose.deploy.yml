@@ -1,0 +1,33 @@
+services:
+  api:
+    image: ${API_ADJUST_IMAGE}
+    container_name: api-adjust
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      STORAGE_ROOT: ${STORAGE_ROOT:-/otp/rerun/uploads}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ${DATA_DIR:-/otp/rerun/uploads}:/data/rrd
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: api-adjust-nginx
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${NGINX_PORT:-8083}:80"
+    volumes:
+      - ${DATA_DIR:-/otp/rerun/uploads}:/otp/rerun/uploads:ro
+      - ./nginx/api-adjust.conf:/etc/nginx/conf.d/api-adjust.conf:ro
+

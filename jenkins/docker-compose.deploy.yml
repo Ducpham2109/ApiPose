@@ -6,11 +6,11 @@ services:
     env_file:
       - .env
     environment:
-      STORAGE_ROOT: ${STORAGE_ROOT:-/opt/rerun/uploads}
+      STORAGE_ROOT: ${STORAGE_ROOT:-/opt/rerun/public/uploads}
     ports:
       - "8000:8000"
     volumes:
-      - ${DATA_DIR:-/opt/rerun/uploads}:/data/rrd
+      - ${DATA_DIR:-/opt/rerun/public/uploads}:/data/rrd
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
       interval: 30s
@@ -28,6 +28,6 @@ services:
     ports:
       - "${NGINX_PORT:-8083}:80"
     volumes:
-      - ${DATA_DIR:-/opt/rerun/uploads}:/opt/rerun/uploads:ro
+      - ${DATA_DIR:-/opt/rerun/public/uploads}:/opt/rerun/public/uploads:ro
       - ./nginx/api-adjust.conf:/etc/nginx/conf.d/api-adjust.conf:ro
 

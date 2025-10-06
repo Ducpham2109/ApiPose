@@ -69,7 +69,13 @@ pipeline {
           export DATA_DIR=${DATA_DIR}
           export STORAGE_ROOT=${STORAGE_ROOT}
           export NGINX_PORT=${NGINX_PORT}
-          mkdir -p ${DATA_DIR}
+          sudo mkdir -p ${DATA_DIR}
+          sudo chown jenkins:jenkins ${DATA_DIR}
+          
+          # Copy .env file to jenkins directory
+          mkdir -p jenkins
+          cp .env jenkins/.env
+          
           docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} up -d --remove-orphans --force-recreate
         '''
       }

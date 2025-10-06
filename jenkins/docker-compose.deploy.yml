@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     environment:
-      STORAGE_ROOT: ${STORAGE_ROOT:-/opt/rerun/public/uploads}
+      STORAGE_ROOT: ${STORAGE_ROOT:-/data/rrd}
     ports:
       - "8000:8000"
     volumes:
@@ -17,18 +17,4 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: api-adjust-nginx
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-    ports:
-      - "${NGINX_PORT:-8083}:80"
-    volumes:
-          - ./public/uploads:/var/www/uploads
-      # Mount nginx config
-      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
 

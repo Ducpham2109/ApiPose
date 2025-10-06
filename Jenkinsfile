@@ -5,11 +5,11 @@ pipeline {
     IMAGE_NAME = 'api-adjust'
     IMAGE_TAG = "build-${env.BUILD_NUMBER}"
     IMAGE_LOCAL = "${IMAGE_NAME}:${IMAGE_TAG}"
-    DATA_DIR = '/opt/rerun/public/uploads'
-    STORAGE_ROOT = '/opt/rerun/public/uploads'
+    DATA_DIR = './data'
+    STORAGE_ROOT = '/data/rrd'
     COMPOSE_FILE = 'jenkins/docker-compose.deploy.yml'
     COMPOSE_PROJECT = 'api-adjust'
-    NGINX_PORT = '8083'
+    API_PORT = '8000'
   }
 
   options {
@@ -68,10 +68,11 @@ pipeline {
           export API_ADJUST_IMAGE=${IMAGE_LOCAL}
           export DATA_DIR=${DATA_DIR}
           export STORAGE_ROOT=${STORAGE_ROOT}
-          export NGINX_PORT=${NGINX_PORT}
+          export API_PORT=${API_PORT}
           
-          # Create directory in workspace instead of system directory
-          mkdir -p ${DATA_DIR}
+          # Create directory for data storage
+          mkdir -p ${DATA_DIR}/origin
+          mkdir -p ${DATA_DIR}/process
           
           # Copy .env file to jenkins directory
           mkdir -p jenkins

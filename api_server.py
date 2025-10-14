@@ -79,20 +79,24 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     output_rrd = Path(str(base_rrd_path).replace("_PRIOR.rrd", ".rrd"))
 
     try:
+        # Move the generated file so that upload paths swap "origin" for "process"
         rel_to_root = output_rrd.relative_to(storage_root)
+        rel_path = Path(rel_to_root)
+        rel_parts = list(rel_path.parts)
+        file_name = rel_parts[-1]
+        dir_parts = rel_parts[:-1]
 
-        parts = list(Path(rel_to_root).parts)
-        if "origin" in parts:
-            idx = parts.index("origin")
-            pre = parts[:idx]
-            target_dir = storage_root.joinpath(*pre, "process")
+        target_dir_parts = dir_parts.copy()
+        if "origin" in target_dir_parts:
+            idx = target_dir_parts.index("origin")
+            target_dir_parts[idx] = "process"
         else:
-            parent_rel = Path(rel_to_root).parent
-            target_dir = storage_root / parent_rel / "process"
+            target_dir_parts.append("process")
 
+        target_dir = storage_root.joinpath(*target_dir_parts) if target_dir_parts else storage_root / "process"
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        target = target_dir / output_rrd.name
+        target = target_dir / file_name
         if target.exists():
             target.unlink()
         output_rrd.replace(target)

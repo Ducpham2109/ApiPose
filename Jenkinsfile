@@ -5,11 +5,11 @@ pipeline {
     IMAGE_NAME = 'api-adjust'
     IMAGE_TAG = "build-${env.BUILD_NUMBER}"
     IMAGE_LOCAL = "${IMAGE_NAME}:${IMAGE_TAG}"
-    DATA_DIR = './data'
-    STORAGE_ROOT = '/data/rrd'
+    DATA_DIR = '/opt/rerun/public/uploads'
+    STORAGE_ROOT = '/opt/rerun/public/uploads'
     COMPOSE_FILE = 'jenkins/docker-compose.deploy.yml'
     COMPOSE_PROJECT = 'api-adjust'
-    API_PORT = '8000'
+    NGINX_PORT = '8083'
   }
 
   options {
@@ -68,15 +68,13 @@ pipeline {
           export API_ADJUST_IMAGE=${IMAGE_LOCAL}
           export DATA_DIR=${DATA_DIR}
           export STORAGE_ROOT=${STORAGE_ROOT}
-          export API_PORT=${API_PORT}
+          export NGINX_PORT=${NGINX_PORT}
+          sudo mkdir -p ${DATA_DIR}
+          sudo chown jenkins:jenkins ${DATA_DIR}
           
-          # Create directory for data storage
-          mkdir -p ${DATA_DIR}/origin
-          mkdir -p ${DATA_DIR}/process
-          
-          # Create jenkins directory (no need to copy .env)
+          # Copy .env file to jenkins directory
           mkdir -p jenkins
-          chmod 755 jenkins
+          cp .env jenkins/.env
           
           docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} up -d --remove-orphans --force-recreate
         '''

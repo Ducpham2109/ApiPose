@@ -234,3 +234,4 @@ chown -R 1000:1000 /opt/api-adjust/data/
 # Fix permissions
 chmod -R 755 /opt/api-adjust/data/
 ```
+

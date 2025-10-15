@@ -7,7 +7,7 @@ Tai lieu nay mo ta toan bo quy trinh tu luc Jenkins lay source code, build image
 - Jenkins chay pipeline tu repo nay (su dung Jenkinsfile o thu muc goc).
 - Pipeline build Docker image, chay smoke test, sau do goi `docker compose` de khoi dong ca backend FastAPI (`api`) va reverse proxy (`nginx`).
 - Thu muc `/app/public` tren may chu duoc mount vao nginx de phuc vu file t?nh; container API su dung thu muc nay lam workspace de luu file da tai ve va ket qua xu ly.
-- Du lieu dau vao duoc nginx phuc vu qua HTTP (`NGINX_INPUT_BASE_URL`), FastAPI se tai `_PRIOR.rrd` tu URL nay truoc khi xu ly.
+- Du lieu dau vao duoc nginx phuc vu qua HTTP (`NGINX_INPUT_BASE_URL`), FastAPI se tai `_PRIOR.rrd` tu URL nay truoc khi xu ly va luu ket qua vao duong dan duoc dinh nghia boi `OUTPUT_BASE_REL_PATH` hoac mac dinh thay `origin` thanh `process`.
 
 ## 2. Chuan bi may chu Jenkins (192.168.210.100)
 

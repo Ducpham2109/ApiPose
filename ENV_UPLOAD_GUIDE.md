@@ -12,6 +12,11 @@ cat > .env << 'EOF'
 STORAGE_ROOT=/app/public
 DATA_DIR=/app/public
 
+# Output Configuration (optional)
+# OUTPUT_BASE_REL_PATH=uploads/process
+OUTPUT_TARGET_SEGMENT=process
+# OUTPUT_PATH_PREFIX=upload.process
+
 # Nginx Configuration
 NGINX_INPUT_BASE_URL=http://192.168.210.100:8083/files
 NGINX_PORT=8083

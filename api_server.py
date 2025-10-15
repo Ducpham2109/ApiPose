@@ -32,7 +32,7 @@ class AdjustPoseRequest(BaseModel):
 
 
 class AdjustPoseResponse(BaseModel):
-    output_url: str = Field(..., description="URL path to the processed RRD file")
+    output_url: str = Field(..., description="Absolute URL (served by nginx) to the processed RRD file")
 
 
 app = FastAPI(title="RRD Pose Adjust API")
@@ -68,7 +68,7 @@ def _normalize_rel_path(rel_path: str) -> Path:
     return rel
 
 
-def _download_input_rrd(storage_root: Path, rel_path: str) -> Path:
+def _download_input_rrd(storage_root: Path, rel_path: str) -> tuple[Path, Path]:
     rel = _normalize_rel_path(rel_path)
     target_path = storage_root.joinpath(*rel.parts)
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -83,7 +83,40 @@ def _download_input_rrd(storage_root: Path, rel_path: str) -> Path:
     with target_path.open("wb") as file_handle:
         file_handle.write(response.content)
 
-    return target_path
+    return target_path, rel
+
+
+def _build_output_relative_path(input_rel: Path) -> Path:
+    if not input_rel.parts:
+        raise HTTPException(status_code=400, detail="Invalid input_rel_path")
+
+    file_name = input_rel.name
+    if "_PRIOR.rrd" not in file_name:
+        raise HTTPException(status_code=400, detail="input_rel_path must point to *_PRIOR.rrd")
+    file_name = file_name.replace("_PRIOR.rrd", ".rrd")
+
+    base_dir_parts = list(input_rel.parent.parts)
+    override_dir = os.getenv("OUTPUT_BASE_REL_PATH", "").strip()
+    if override_dir:
+        base_dir_parts = [
+            segment for segment in Path(override_dir.lstrip("/\\")).parts if segment not in {"", "."}
+        ]
+    else:
+        target_segment = os.getenv("OUTPUT_TARGET_SEGMENT", "process")
+        if "origin" in base_dir_parts:
+            idx = base_dir_parts.index("origin")
+            base_dir_parts[idx] = target_segment
+        else:
+            base_dir_parts.append(target_segment)
+
+    relative = Path(*base_dir_parts, file_name) if base_dir_parts else Path(file_name)
+
+    prefix = os.getenv("OUTPUT_PATH_PREFIX", "").strip()
+    if prefix:
+        prefix_parts = [segment for segment in Path(prefix.lstrip("/\\")).parts if segment not in {"", "."}]
+        relative = Path(*prefix_parts, *relative.parts)
+
+    return relative
 
 
 @app.post("/api/adjust-pose", response_model=AdjustPoseResponse)
@@ -91,7 +124,7 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     storage_root = _resolve_storage_root()
 
     # download input RRD via nginx into storage_root
-    base_rrd_path = _download_input_rrd(storage_root, payload.input_rel_path)
+    base_rrd_path, input_rel = _download_input_rrd(storage_root, payload.input_rel_path)
 
     # gọi hàm xử lý
     try:
@@ -106,45 +139,18 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
         raise HTTPException(status_code=500, detail=f"Processing failed: {exc}") from exc
 
     # output file: đổi _PRIOR.rrd → .rrd
-    output_rrd = Path(str(base_rrd_path).replace("_PRIOR.rrd", ".rrd"))
+    output_rel = _build_output_relative_path(input_rel)
+    output_rrd = storage_root.joinpath(*output_rel.parts)
+    output_rrd.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
-        # Move the generated file so that upload paths swap "origin" for "process"
-        rel_to_root = output_rrd.relative_to(storage_root)
-        rel_path = Path(rel_to_root)
-        rel_parts = list(rel_path.parts)
-        file_name = rel_parts[-1]
-        dir_parts = rel_parts[:-1]
+    processed_source = Path(str(base_rrd_path).replace("_PRIOR.rrd", ".rrd"))
+    if output_rrd.exists():
+        output_rrd.unlink()
+    processed_source.replace(output_rrd)
 
-        target_dir_parts = dir_parts.copy()
-        if "origin" in target_dir_parts:
-            idx = target_dir_parts.index("origin")
-            target_dir_parts[idx] = "process"
-        else:
-            target_dir_parts.append("process")
+    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", output_rel.as_posix())
 
-        target_dir = storage_root.joinpath(*target_dir_parts) if target_dir_parts else storage_root / "process"
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        target = target_dir / file_name
-        if target.exists():
-            target.unlink()
-        output_rrd.replace(target)
-        output_rrd = target
-    except Exception:
-        pass
-
-    # build lại relative path cho response
-    rel_posix = (
-        output_rrd.relative_to(storage_root).as_posix()
-        if storage_root in output_rrd.parents
-        else output_rrd.name
-    )
-    rel_url_path = f"/{rel_posix}"
-
-    return AdjustPoseResponse(
-        output_url=rel_url_path
-    )
+    return AdjustPoseResponse(output_url=absolute_url)
 
 
 def create_app() -> FastAPI:

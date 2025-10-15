@@ -32,7 +32,14 @@ class AdjustPoseRequest(BaseModel):
 
 
 class AdjustPoseResponse(BaseModel):
-    output_url: str = Field(..., description="Absolute URL (served by nginx) to the processed RRD file")
+    output_rel_path: str = Field(
+        ...,
+        description="Relative URL path (appended to NGINX_INPUT_BASE_URL) to the processed RRD file",
+    )
+    output_url: str = Field(
+        ...,
+        description="Absolute URL (served by nginx) to the processed RRD file",
+    )
 
 
 app = FastAPI(title="RRD Pose Adjust API")
@@ -171,9 +178,10 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     processed_source.replace(output_rrd)
 
     response_rel = Path(*input_prefix, *output_rel.parts) if input_prefix else output_rel
-    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", response_rel.as_posix())
+    relative_path = response_rel.as_posix()
+    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", relative_path)
 
-    return AdjustPoseResponse(output_url=absolute_url)
+    return AdjustPoseResponse(output_rel_path=relative_path, output_url=absolute_url)
 
 
 def create_app() -> FastAPI:

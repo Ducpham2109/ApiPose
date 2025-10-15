@@ -7,6 +7,7 @@ Dựa trên file `env.example` và code `api_server.py`, server cần được c
 ## 🔧 **1. Cấu hình Environment Variables**
 
 ### **Tạo file .env trên server:**
+
 ```bash
 # SSH vào server
 ssh root@192.168.210.100
@@ -18,10 +19,10 @@ STORAGE_ROOT=/data/rrd
 DATA_DIR=./data
 
 # Web Server Configuration (for file access)
-NGINX_INPUT_BASE_URL=http://192.168.210.100:8000/files
+NGINX_INPUT_BASE_URL=http://192.168.210.100:8001/files
 
 # API Configuration
-API_PORT=8000
+API_PORT=8001
 API_HOST=0.0.0.0
 
 # Docker Configuration
@@ -41,6 +42,7 @@ EOF
 ## 📁 **2. Cấu hình thư mục dữ liệu**
 
 ### **Tạo cấu trúc thư mục:**
+
 ```bash
 # Tạo thư mục chính
 mkdir -p /opt/api-adjust/data
@@ -58,13 +60,14 @@ chmod 755 /opt/api-adjust/data/process
 ## 🌐 **3. Cấu hình Nginx trên server (nếu cần)**
 
 ### **Tạo nginx config cho file serving:**
+
 ```bash
 # Tạo nginx config
 cat > /etc/nginx/sites-available/api-adjust << 'EOF'
 server {
     listen 80;
     server_name 192.168.210.100;
-    
+
     # Serve static files
     location /files/ {
         alias /opt/api-adjust/data/;
@@ -72,19 +75,19 @@ server {
         autoindex_exact_size off;
         autoindex_localtime on;
     }
-    
+
     # Proxy API requests
     location /api/ {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    
+
     # Health check
     location /healthz {
-        proxy_pass http://127.0.0.1:8000/healthz;
+        proxy_pass http://127.0.0.1:8001/healthz;
     }
 }
 EOF
@@ -98,6 +101,7 @@ systemctl reload nginx
 ## 🐳 **4. Cấu hình Docker**
 
 ### **Tạo docker-compose.yml:**
+
 ```bash
 # Tạo docker-compose.yml
 cat > /opt/api-adjust/docker-compose.yml << 'EOF'
@@ -112,11 +116,11 @@ services:
     environment:
       STORAGE_ROOT: /data/rrd
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       - ./data:/data/rrd
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -127,6 +131,7 @@ EOF
 ## 🚀 **5. Deploy và Start**
 
 ### **Deploy application:**
+
 ```bash
 # Vào thư mục project
 cd /opt/api-adjust
@@ -145,15 +150,16 @@ docker logs api-adjust
 ## 🔍 **6. Kiểm tra cấu hình**
 
 ### **Test API endpoints:**
+
 ```bash
 # Health check
-curl http://192.168.210.100:8000/healthz
+curl http://192.168.210.100:8001/healthz
 
 # Test file access
-curl http://192.168.210.100:8000/files/
+curl http://192.168.210.100:8001/files/
 
 # Test API
-curl -X POST http://192.168.210.100:8000/api/adjust-pose \
+curl -X POST http://192.168.210.100:8001/api/adjust-pose \
   -H "Content-Type: application/json" \
   -d '{
     "input_rel_path": "test.rrd",
@@ -165,6 +171,7 @@ curl -X POST http://192.168.210.100:8000/api/adjust-pose \
 ## 📊 **7. Workflow hoạt động**
 
 ### **Quy trình xử lý:**
+
 ```
 1. Web upload file RRD → Lưu vào /opt/api-adjust/data/origin/
 2. Web gọi API: POST /api/adjust-pose
@@ -175,6 +182,7 @@ curl -X POST http://192.168.210.100:8000/api/adjust-pose \
 ```
 
 ### **Cấu trúc thư mục:**
+
 ```
 /opt/api-adjust/
 ├── .env                    # Environment variables
@@ -188,6 +196,7 @@ curl -X POST http://192.168.210.100:8000/api/adjust-pose \
 ## 🔧 **8. Monitoring và Logs**
 
 ### **Xem logs:**
+
 ```bash
 # Container logs
 docker logs api-adjust
@@ -200,6 +209,7 @@ journalctl -u docker
 ```
 
 ### **Restart service:**
+
 ```bash
 # Restart container
 docker-compose restart
@@ -212,6 +222,7 @@ docker-compose up -d --build
 ## ⚠️ **9. Troubleshooting**
 
 ### **Lỗi thường gặp:**
+
 ```bash
 # Kiểm tra container status
 docker ps -a
@@ -223,10 +234,11 @@ docker logs api-adjust
 ls -la /opt/api-adjust/data/
 
 # Kiểm tra port
-netstat -tlnp | grep :8000
+netstat -tlnp | grep :8001
 ```
 
 ### **Fix quyền:**
+
 ```bash
 # Fix ownership
 chown -R 1000:1000 /opt/api-adjust/data/
@@ -234,4 +246,3 @@ chown -R 1000:1000 /opt/api-adjust/data/
 # Fix permissions
 chmod -R 755 /opt/api-adjust/data/
 ```
-

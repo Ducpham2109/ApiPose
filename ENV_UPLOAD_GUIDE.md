@@ -12,12 +12,12 @@ cat > .env << 'EOF'
 STORAGE_ROOT=/opt/rerun/public/uploads
 DATA_DIR=/opt/rerun/public/uploads
 
-# Nginx Configuration  
+# Nginx Configuration
 NGINX_INPUT_BASE_URL=http://192.168.210.100:8083/files
 NGINX_PORT=8083
 
 # API Configuration
-API_PORT=8000
+API_PORT=8001
 API_HOST=0.0.0.0
 
 # Docker Configuration
@@ -63,7 +63,7 @@ EOF
 ssh root@192.168.210.100 "docker ps"
 
 # Kiểm tra API
-ssh root@192.168.210.100 "curl http://localhost:8000/healthz"
+ssh root@192.168.210.100 "curl http://localhost:8001/healthz"
 
 # Kiểm tra nginx
 ssh root@192.168.210.100 "curl http://localhost:8083"

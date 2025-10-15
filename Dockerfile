@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy source
 COPY . /app
 
-EXPOSE 8000
+EXPOSE 8001
 
 # Default storage dir inside container (can be overridden via env)
 ENV STORAGE_ROOT=/data/rrd
@@ -29,4 +29,4 @@ ENV STORAGE_ROOT=/data/rrd
 RUN mkdir -p /data/rrd
 
 # Start server
-CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8001"]

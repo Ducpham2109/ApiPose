@@ -2,7 +2,7 @@ import requests
 import json
 
 # URL của API
-url = "http://localhost:8000/api/adjust-pose"
+url = "http://localhost:8001/api/adjust-pose"
 
 # Dữ liệu test
 payload = {
@@ -38,6 +38,6 @@ try:
         
 except requests.exceptions.ConnectionError:
     print("ERROR: Cannot connect to server!")
-    print("Make sure server is running on http://localhost:8000")
+    print("Make sure server is running on http://localhost:8001")
 except Exception as e:
     print(f"ERROR: {e}")

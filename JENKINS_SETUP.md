@@ -11,21 +11,26 @@
 ## Bước 2: Cấu hình General Tab
 
 ### Description:
+
 - Nhập mô tả: `API Adjust - FastAPI application deployment`
 
 ### Build Options:
+
 - ✅ **Discard old builds**: Keep only the last 10 builds
 - ✅ **Do not allow concurrent builds**: Để tránh conflict
 
 ### GitHub Connection:
+
 - **GitHub project**: `https://github.com/Ducpham2109/api-adjust` (nếu có)
 
 ### Advanced Project Options:
+
 - **This project is parameterized**: ✅ (để có thể chọn deploy gì)
 
 ## Bước 3: Cấu hình Pipeline Tab
 
 ### Pipeline Definition:
+
 - **Definition**: **Pipeline script from SCM** (không phải Pipeline script)
 - **SCM**: Git
 - **Repository URL**: `https://github.com/Ducpham2109/api-adjust.git`
@@ -34,6 +39,7 @@
 - **Script Path**: `Jenkinsfile`
 
 ### Build Triggers:
+
 - ✅ **Poll SCM**: `H/5 * * * *` (check mỗi 5 phút)
 - Hoặc ✅ **GitHub hook trigger for GITScm polling** (nếu có webhook)
 
@@ -48,6 +54,6 @@
 ```bash
 # Kiểm tra trên server
 ssh root@192.168.210.100 "docker ps"
-ssh root@192.168.210.100 "curl http://localhost:8000/healthz"
+ssh root@192.168.210.100 "curl http://localhost:8001/healthz"
 ssh root@192.168.210.100 "curl http://localhost:8083"
 ```

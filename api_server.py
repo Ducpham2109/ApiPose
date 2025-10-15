@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
+from urllib.parse import urljoin
 
-from fastapi import FastAPI, Body, HTTPException
-from pydantic import BaseModel, Field, validator
+import requests
 from dotenv import load_dotenv
+from fastapi import Body, FastAPI, HTTPException
+from pydantic import BaseModel, Field, validator
+from requests import RequestException
 
 from label_odom2world_pose import manipulate_pose
 
@@ -54,14 +57,41 @@ def _nginx_input_base_url() -> str:
     return url
 
 
+def _normalize_rel_path(rel_path: str) -> Path:
+    cleaned = rel_path.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="input_rel_path cannot be empty")
+
+    rel = Path(cleaned.lstrip("/\\"))
+    if not rel.parts or any(part in {"", ".", ".."} for part in rel.parts):
+        raise HTTPException(status_code=400, detail="Invalid input_rel_path")
+    return rel
+
+
+def _download_input_rrd(storage_root: Path, rel_path: str) -> Path:
+    rel = _normalize_rel_path(rel_path)
+    target_path = storage_root.joinpath(*rel.parts)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    source_url = urljoin(f"{_nginx_input_base_url()}/", rel.as_posix())
+    try:
+        response = requests.get(source_url, timeout=30)
+        response.raise_for_status()
+    except RequestException as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to download input RRD: {exc}") from exc
+
+    with target_path.open("wb") as file_handle:
+        file_handle.write(response.content)
+
+    return target_path
+
+
 @app.post("/api/adjust-pose", response_model=AdjustPoseResponse)
 def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     storage_root = _resolve_storage_root()
 
-    # lấy file input từ storage_root + input_rel_path
-    base_rrd_path = storage_root / payload.input_rel_path.lstrip("/")
-    if not base_rrd_path.is_file():
-        raise HTTPException(status_code=400, detail="Input RRD not found")
+    # download input RRD via nginx into storage_root
+    base_rrd_path = _download_input_rrd(storage_root, payload.input_rel_path)
 
     # gọi hàm xử lý
     try:

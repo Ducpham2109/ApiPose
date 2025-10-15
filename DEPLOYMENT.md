@@ -6,7 +6,8 @@ Tai lieu nay mo ta toan bo quy trinh tu luc Jenkins lay source code, build image
 
 - Jenkins chay pipeline tu repo nay (su dung Jenkinsfile o thu muc goc).
 - Pipeline build Docker image, chay smoke test, sau do goi `docker compose` de khoi dong ca backend FastAPI (`api`) va reverse proxy (`nginx`).
-- Tat ca file RRD duoc luu o thu muc `/app/public` tren may chu va duoc mount vao ca hai container o che do read/write (api) va read-only (nginx).
+- Thu muc `/app/public` tren may chu duoc mount vao nginx de phuc vu file t?nh; container API su dung thu muc nay lam workspace de luu file da tai ve va ket qua xu ly.
+- Du lieu dau vao duoc nginx phuc vu qua HTTP (`NGINX_INPUT_BASE_URL`), FastAPI se tai `_PRIOR.rrd` tu URL nay truoc khi xu ly.
 
 ## 2. Chuan bi may chu Jenkins (192.168.210.100)
 
@@ -66,7 +67,7 @@ Cac stage chinh:
 ## 5. docker-compose.deploy.yml
 
 - Dinh nghia 2 service:
-  - **api**: chay image vua build, mount `/app/public` vao `/app/public`, expose cong `8001`, co healthcheck `/healthz`.
+  - **api**: chay image vua build, mount `/app/public` neu muon luu ket qua ra host (khuyen khich), expose cong `8001`, co healthcheck `/healthz`.
   - **nginx**: image `nginx:1.25-alpine`, phu thuoc service `api` o trang thai healthy, publish `${NGINX_PORT:-8083}:80`, mount thu muc du lieu read-only va file cau hinh `./nginx/api-adjust.conf` vao thu muc config mac dinh.
 - Chi so `depends_on` dam bao nginx chi khoi dong khi backend san sang.
 

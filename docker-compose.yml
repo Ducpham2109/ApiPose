@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  api:
+    build: .
+    container_name: api-adjust
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      # Fallback defaults if not provided in .env
+      - STORAGE_ROOT=/app/public/uploads
+      # NGINX_INPUT_BASE_URL should be set in .env to your public URL
+    volumes:
+      - ./data:/data/rrd
+    restart: unless-stopped

@@ -43,7 +43,7 @@ Tai lieu nay mo ta toan bo quy trinh tu luc Jenkins lay source code, build image
 - Tao credential kieu **Secret file** voi ID `api-adjust-env`.
 - Noi dung toi thieu:
   ```env
-  STORAGE_ROOT=/opt/rerun/public/uploads
+  STORAGE_ROOT=/app/public/uploads
   NGINX_INPUT_BASE_URL=http://<ten-may-hoac-ip>:8083/opt/rerun/public/uploads
   ```
 - Khi pipeline chay, neu workspace chua co `.env` se tu dong copy tu credential nay.

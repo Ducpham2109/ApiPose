@@ -9,8 +9,8 @@ cp env.example .env
 # Hoặc tạo thủ công
 cat > .env << 'EOF'
 # Storage Configuration
-STORAGE_ROOT=/app/public/uploads
-DATA_DIR=/opt/rerun/public/uploads
+STORAGE_ROOT=/app/public
+DATA_DIR=/app/public
 
 # Nginx Configuration
 NGINX_INPUT_BASE_URL=http://192.168.210.100:8083/files

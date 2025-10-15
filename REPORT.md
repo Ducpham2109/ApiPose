@@ -46,7 +46,7 @@
 #### **3.1 Cấu trúc thư mục:**
 
 ```
-/data/rrd/
+/app/public/
 ├── origin/     # File RRD input từ web
 └── process/    # File RRD output đã xử lý
 ```
@@ -107,7 +107,7 @@ class AdjustPoseResponse(BaseModel):
 
 - **Base Image:** Python 3.11-slim
 - **Port:** 8001
-- **Volume Mount:** `./data:/data/rrd`
+- **Volume Mount:** `./data:/app/public`
 - **Environment:** Production-ready
 
 ### **2. Jenkins CI/CD Pipeline:**
@@ -121,7 +121,7 @@ class AdjustPoseResponse(BaseModel):
 ### **3. Environment Configuration:**
 
 ```bash
-STORAGE_ROOT=/data/rrd
+STORAGE_ROOT=/app/public
 DATA_DIR=./data
 NGINX_INPUT_BASE_URL=http://192.168.210.100:8001/files
 API_PORT=8001

@@ -5,8 +5,8 @@ pipeline {
     IMAGE_NAME = 'api-adjust'
     IMAGE_TAG = "build-${env.BUILD_NUMBER}"
     IMAGE_LOCAL = "${IMAGE_NAME}:${IMAGE_TAG}"
-    DATA_DIR = '/opt/rerun/public/uploads'
-    STORAGE_ROOT = '/app/public/uploads'
+    DATA_DIR = '/app/public'
+    STORAGE_ROOT = '/app/public'
     COMPOSE_FILE = 'jenkins/docker-compose.deploy.yml'
     COMPOSE_PROJECT = 'api-adjust'
     NGINX_PORT = '8083'

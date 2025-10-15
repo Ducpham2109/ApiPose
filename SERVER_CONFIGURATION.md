@@ -15,7 +15,7 @@ ssh root@192.168.210.100
 # Tạo file .env
 cat > /opt/api-adjust/.env << 'EOF'
 # Storage Configuration
-STORAGE_ROOT=/data/rrd
+STORAGE_ROOT=/app/public
 DATA_DIR=./data
 
 # Web Server Configuration (for file access)
@@ -114,11 +114,11 @@ services:
     env_file:
       - .env
     environment:
-      STORAGE_ROOT: /data/rrd
+      STORAGE_ROOT: /app/public
     ports:
       - "8001:8001"
     volumes:
-      - ./data:/data/rrd
+      - ./data:/app/public
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz')"]
       interval: 30s

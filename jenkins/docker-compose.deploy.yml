@@ -6,11 +6,11 @@ services:
     env_file:
       - .env
     environment:
-      STORAGE_ROOT: ${STORAGE_ROOT:-/data/rrd}
+      STORAGE_ROOT: ${STORAGE_ROOT:-/app/public}
     ports:
       - "8001:8001"
     volumes:
-      - ${DATA_DIR:-./data}:/data/rrd
+      - ${DATA_DIR:-./data}:/app/public
     healthcheck:
       test:
         [

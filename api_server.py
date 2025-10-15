@@ -57,6 +57,17 @@ def _nginx_input_base_url() -> str:
     return url
 
 
+def _input_prefix_parts() -> list[str]:
+    prefix = os.getenv("INPUT_PATH_PREFIX", "uploads").strip()
+    if not prefix:
+        return []
+    return [
+        segment
+        for segment in Path(prefix.lstrip("/\\")).parts
+        if segment not in {"", "."}
+    ]
+
+
 def _normalize_rel_path(rel_path: str) -> Path:
     cleaned = rel_path.strip()
     if not cleaned:
@@ -68,9 +79,20 @@ def _normalize_rel_path(rel_path: str) -> Path:
     return rel
 
 
-def _download_input_rrd(storage_root: Path, rel_path: str) -> tuple[Path, Path]:
+def _download_input_rrd(storage_root: Path, rel_path: str) -> tuple[Path, Path, list[str]]:
     rel = _normalize_rel_path(rel_path)
-    target_path = storage_root.joinpath(*rel.parts)
+    prefix_parts = _input_prefix_parts()
+    rel_parts = list(rel.parts)
+    prefix_consumed = False
+    if prefix_parts and rel_parts[: len(prefix_parts)] == prefix_parts:
+        rel_parts = rel_parts[len(prefix_parts) :]
+        prefix_consumed = True
+
+    stripped_rel = Path(*rel_parts)
+    if not stripped_rel.parts:
+        raise HTTPException(status_code=400, detail="input_rel_path cannot point to a directory")
+
+    target_path = storage_root.joinpath(*stripped_rel.parts)
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     source_url = urljoin(f"{_nginx_input_base_url()}/", rel.as_posix())
@@ -83,7 +105,7 @@ def _download_input_rrd(storage_root: Path, rel_path: str) -> tuple[Path, Path]:
     with target_path.open("wb") as file_handle:
         file_handle.write(response.content)
 
-    return target_path, rel
+    return target_path, stripped_rel, prefix_parts if prefix_consumed else []
 
 
 def _build_output_relative_path(input_rel: Path) -> Path:
@@ -124,7 +146,7 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     storage_root = _resolve_storage_root()
 
     # download input RRD via nginx into storage_root
-    base_rrd_path, input_rel = _download_input_rrd(storage_root, payload.input_rel_path)
+    base_rrd_path, input_rel, input_prefix = _download_input_rrd(storage_root, payload.input_rel_path)
 
     # gọi hàm xử lý
     try:
@@ -148,7 +170,8 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
         output_rrd.unlink()
     processed_source.replace(output_rrd)
 
-    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", output_rel.as_posix())
+    response_rel = Path(*input_prefix, *output_rel.parts) if input_prefix else output_rel
+    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", response_rel.as_posix())
 
     return AdjustPoseResponse(output_url=absolute_url)
 

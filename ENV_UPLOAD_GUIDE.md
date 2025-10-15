@@ -16,6 +16,7 @@ DATA_DIR=/app/public
 # OUTPUT_BASE_REL_PATH=uploads/process
 OUTPUT_TARGET_SEGMENT=process
 # OUTPUT_PATH_PREFIX=upload.process
+# INPUT_PATH_PREFIX=uploads
 
 # Nginx Configuration
 NGINX_INPUT_BASE_URL=http://192.168.210.100:8083/files

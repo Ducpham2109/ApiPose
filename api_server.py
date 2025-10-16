@@ -1,7 +1,9 @@
 import os
+import json
 import logging
+import sys
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from dotenv import load_dotenv
@@ -11,9 +13,42 @@ from requests import RequestException
 
 from label_odom2world_pose import manipulate_pose
 
-logger = logging.getLogger("api.adjust_pose")
-
 load_dotenv()
+
+
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+def _configure_logging() -> None:
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    log_format = os.getenv("LOG_FORMAT", "text").lower()
+
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        if log_format == "json":
+            handler.setFormatter(_JsonFormatter())
+        else:
+            handler.setFormatter(
+                logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+            )
+        root_logger.addHandler(handler)
+    root_logger.setLevel(level)
+
+
+_configure_logging()
+logger = logging.getLogger("api.adjust_pose")
 
 
 class AdjustPoseRequest(BaseModel):
@@ -83,6 +118,14 @@ def _normalize_rel_path(rel_path: str) -> Path:
     cleaned = rel_path.strip()
     if not cleaned:
         raise HTTPException(status_code=400, detail="input_rel_path cannot be empty")
+
+    parsed = urlsplit(cleaned)
+    if parsed.scheme or parsed.netloc:
+        if parsed.query or parsed.fragment:
+            raise HTTPException(status_code=400, detail="input_rel_path must not contain query or fragment")
+        cleaned = parsed.path.strip()
+        if not cleaned:
+            raise HTTPException(status_code=400, detail="input_rel_path cannot be empty")
 
     rel = Path(cleaned.lstrip("/\\"))
     if not rel.parts or any(part in {"", ".", ".."} for part in rel.parts):
@@ -159,9 +202,11 @@ def _build_output_relative_path(input_rel: Path) -> Path:
 def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     storage_root = _resolve_storage_root()
     logger.info("Starting pose adjustment; storage_root=%s input_rel_path=%s", storage_root, payload.input_rel_path)
+    logger.info("Payload offsets xyz=%s rpy=%s", payload.xyz, payload.rpy)
 
     # download input RRD via nginx into storage_root
     base_rrd_path, input_rel, input_prefix = _download_input_rrd(storage_root, payload.input_rel_path)
+    logger.info("Downloaded base RRD to %s (relative=%s prefix=%s)", base_rrd_path, input_rel, input_prefix or [])
 
     # gọi hàm xử lý
     try:
@@ -188,10 +233,11 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     if output_rrd.exists():
         output_rrd.unlink()
     processed_source.replace(output_rrd)
-    logger.info("Saved processed RRD to %s", output_rrd)
+    processed_size = output_rrd.stat().st_size if output_rrd.exists() else None
+    logger.info("Saved processed RRD to %s (size=%s)", output_rrd, processed_size)
 
     response_rel = Path(*input_prefix, *output_rel.parts) if input_prefix else output_rel
-    relative_path = response_rel.as_posix()
+    relative_path = "/" + response_rel.as_posix().lstrip("/")
     absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", relative_path)
     logger.info("Pose adjustment finished; output_rel_path=%s output_url=%s", relative_path, absolute_url)
 

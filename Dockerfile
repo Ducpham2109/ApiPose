@@ -23,10 +23,7 @@ COPY . /app
 EXPOSE 8001
 
 # Default storage dir inside container (can be overridden via env)
-ENV STORAGE_ROOT=/app/public
-
-# Ensure storage dir exists at runtime
-RUN mkdir -p /app/public
+ENV STORAGE_ROOT=/opt/rerun/public/uploads/  
 
 # Start server
 CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8001"]

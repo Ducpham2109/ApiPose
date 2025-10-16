@@ -1,8 +1,11 @@
 import argparse
+import logging
 import os
 import numpy as np
 import rerun as rr
 from scipy.spatial.transform import Rotation as R
+
+logger = logging.getLogger("api.adjust_pose.manipulator")
 
 def decompose_pose(pose: np.ndarray):
     """
@@ -51,17 +54,20 @@ def manipulate_pose(args):
     base_rrd = args.base_rrd
     base_rrd_fname = os.path.basename(base_rrd)
     rid = base_rrd_fname[:base_rrd_fname.index('_LMGI_')]
+    logger.info("Manipulating pose for %s (recording_id=%s)", base_rrd, rid)
 
     rr.init('add_anns_to_base_rrd', recording_id=rid)
     rr.log_file_from_path(base_rrd)
 
     recording = rr.dataframe.load_recording(base_rrd)
+    logger.info("Recording object loaded: %s", recording)
     view = recording.view(index='timestamp', contents='world/odom_lidar')
     view_table = view.select_static()
     transform_df = view_table.read_pandas()
 
     rot_quat = transform_df.iloc[0]['/world/odom_lidar:RotationQuat'][0]
     trans = transform_df.iloc[0]['/world/odom_lidar:Translation3D'][0]
+    logger.info("Original translation=%s rotation_quat=%s", trans, rot_quat)
 
     pose_ori = compose_pose(trans, rot_quat=rot_quat)
 
@@ -70,6 +76,8 @@ def manipulate_pose(args):
     pose_manipulate = compose_pose(mainp_trans, rot_euler=mainp_euler)
     pose_new = pose_ori @ pose_manipulate
     odom2world_trans, odom2world_rot_quat = decompose_pose(pose_new)
+    logger.info("Applied offsets translation=%s rotation_euler=%s", mainp_trans.tolist(), mainp_euler.tolist())
+    logger.info("New translation=%s rotation_quat=%s", odom2world_trans, odom2world_rot_quat)
     rr.set_time_seconds('timestamp', 0)
     rr.log(f'world/odom_lidar',
            rr.Transform3D(
@@ -81,6 +89,7 @@ def manipulate_pose(args):
     out_rrd = base_rrd.replace('_PRIOR.rrd', '.rrd')
     
     rr.save(out_rrd)
+    logger.info("Saved manipulated recording to %s", out_rrd)
 
 def comma_separated_list(arg):
     return [float(x) for x in arg.split(',')]

@@ -230,15 +230,38 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     logger.info("Preparing output path %s", output_rrd)
 
     processed_source = Path(str(base_rrd_path).replace("_PRIOR.rrd", ".rrd"))
+    
+    # Đảm bảo file processed_source tồn tại
+    if not processed_source.exists():
+        raise HTTPException(status_code=500, detail=f"Processed file not found: {processed_source}")
+    
+    # Xóa file output cũ nếu tồn tại
     if output_rrd.exists():
         output_rrd.unlink()
+        logger.info("Removed old output file: %s", output_rrd)
+    
+    # Di chuyển file processed sang output
     processed_source.replace(output_rrd)
-    processed_size = output_rrd.stat().st_size if output_rrd.exists() else None
-    logger.info("Saved processed RRD to %s (size=%s)", output_rrd, processed_size)
+    
+    # Đảm bảo file output tồn tại và có kích thước > 0
+    if not output_rrd.exists():
+        raise HTTPException(status_code=500, detail=f"Failed to create output file: {output_rrd}")
+    
+    processed_size = output_rrd.stat().st_size
+    if processed_size == 0:
+        raise HTTPException(status_code=500, detail=f"Output file is empty: {output_rrd}")
+    
+    logger.info("Saved processed RRD to %s (size=%d)", output_rrd, processed_size)
 
     response_rel = Path(*input_prefix, *output_rel.parts) if input_prefix else output_rel
     relative_path = "/" + response_rel.as_posix().lstrip("/")
-    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", relative_path)
+    
+    # Thêm timestamp để tránh cache
+    import time
+    timestamp = int(time.time())
+    cache_buster = f"?t={timestamp}"
+    absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", relative_path) + cache_buster
+    
     logger.info("Pose adjustment finished; output_rel_path=%s output_url=%s", relative_path, absolute_url)
 
     return AdjustPoseResponse(output_rel_path=relative_path, output_url=absolute_url)

@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os
 import numpy as np
 import rerun as rr
 from scipy.spatial.transform import Rotation as R
@@ -52,14 +51,12 @@ def compose_pose(trans, rot_quat=None, rot_euler=None):
 
 def manipulate_pose(args):
     base_rrd = args.base_rrd
-    base_rrd_fname = os.path.basename(base_rrd)
-    rid = base_rrd_fname[:base_rrd_fname.index('_LMGI_')]
+    recording = rr.dataframe.load_recording(base_rrd)
+    rid = recording.recording_id()
     logger.info("Manipulating pose for %s (recording_id=%s)", base_rrd, rid)
 
-    rr.init('add_anns_to_base_rrd', recording_id=rid)
+    rr.init('add_anns_to_base_rrd', recording_id=rid, spawn=False)
     rr.log_file_from_path(base_rrd)
-
-    recording = rr.dataframe.load_recording(base_rrd)
     logger.info("Recording object loaded: %s", recording)
     view = recording.view(index='timestamp', contents='world/odom_lidar')
     view_table = view.select_static()
@@ -89,6 +86,7 @@ def manipulate_pose(args):
     out_rrd = base_rrd.replace('_PRIOR.rrd', '.rrd')
     
     rr.save(out_rrd)
+    rr.disconnect()
     logger.info("Saved manipulated recording to %s", out_rrd)
 
 def comma_separated_list(arg):

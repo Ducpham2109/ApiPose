@@ -1,4 +1,5 @@
 import os
+import logging
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -9,6 +10,8 @@ from pydantic import BaseModel, Field, validator
 from requests import RequestException
 
 from label_odom2world_pose import manipulate_pose
+
+logger = logging.getLogger("api.adjust_pose")
 
 load_dotenv()
 
@@ -54,6 +57,7 @@ def _resolve_storage_root() -> Path:
         raise RuntimeError("Missing STORAGE_ROOT in environment")
     path = Path(root)
     path.mkdir(parents=True, exist_ok=True)
+    logger.info("Using storage_root=%s", path)
     return path
 
 
@@ -103,14 +107,17 @@ def _download_input_rrd(storage_root: Path, rel_path: str) -> tuple[Path, Path, 
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     source_url = urljoin(f"{_nginx_input_base_url()}/", rel.as_posix())
+    logger.info("Downloading input RRD from %s", source_url)
     try:
         response = requests.get(source_url, timeout=30)
         response.raise_for_status()
     except RequestException as exc:
+        logger.warning("Failed to download input RRD from %s: %s", source_url, exc)
         raise HTTPException(status_code=400, detail=f"Failed to download input RRD: {exc}") from exc
 
     with target_path.open("wb") as file_handle:
         file_handle.write(response.content)
+    logger.info("Stored input RRD at %s (size=%d)", target_path, target_path.stat().st_size)
 
     return target_path, stripped_rel, prefix_parts if prefix_consumed else []
 
@@ -151,12 +158,14 @@ def _build_output_relative_path(input_rel: Path) -> Path:
 @app.post("/api/adjust-pose", response_model=AdjustPoseResponse)
 def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
     storage_root = _resolve_storage_root()
+    logger.info("Starting pose adjustment; storage_root=%s input_rel_path=%s", storage_root, payload.input_rel_path)
 
     # download input RRD via nginx into storage_root
     base_rrd_path, input_rel, input_prefix = _download_input_rrd(storage_root, payload.input_rel_path)
 
     # gọi hàm xử lý
     try:
+        logger.info("Invoking manipulate_pose for %s", base_rrd_path)
         class _Args:
             def __init__(self, base_rrd: str, xyz: list[float], rpy: list[float]) -> None:
                 self.base_rrd = base_rrd
@@ -164,22 +173,27 @@ def adjust_pose(payload: AdjustPoseRequest = Body(...)) -> AdjustPoseResponse:
                 self.rpy = rpy
 
         manipulate_pose(_Args(str(base_rrd_path), payload.xyz, payload.rpy))
+        logger.info("Completed manipulate_pose for %s", base_rrd_path)
     except Exception as exc:
+        logger.exception("Processing failed for %s", base_rrd_path)
         raise HTTPException(status_code=500, detail=f"Processing failed: {exc}") from exc
 
     # output file: đổi _PRIOR.rrd → .rrd
     output_rel = _build_output_relative_path(input_rel)
     output_rrd = storage_root.joinpath(*output_rel.parts)
     output_rrd.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Preparing output path %s", output_rrd)
 
     processed_source = Path(str(base_rrd_path).replace("_PRIOR.rrd", ".rrd"))
     if output_rrd.exists():
         output_rrd.unlink()
     processed_source.replace(output_rrd)
+    logger.info("Saved processed RRD to %s", output_rrd)
 
     response_rel = Path(*input_prefix, *output_rel.parts) if input_prefix else output_rel
     relative_path = response_rel.as_posix()
     absolute_url = urljoin(f"{_nginx_input_base_url().rstrip('/')}/", relative_path)
+    logger.info("Pose adjustment finished; output_rel_path=%s output_url=%s", relative_path, absolute_url)
 
     return AdjustPoseResponse(output_rel_path=relative_path, output_url=absolute_url)
 
